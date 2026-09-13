@@ -1,0 +1,161 @@
+import type { ApiError } from "@/types";
+
+const DEFAULT_API_BASE_URL = "https://api.micromath.in";
+
+function readEnv(): Record<string, string | undefined> {
+  const proc = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process;
+  const vite = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  if (vite === undefined) return proc?.env ?? {};
+  const merged: Record<string, string | undefined> = { ...vite };
+  for (const [key, value] of Object.entries(proc?.env ?? {})) if (typeof value === "string" && value !== "") merged[key] = value;
+  return merged;
+}
+
+const ENV = readEnv();
+const RAW_BASE_URL = ENV["VITE_API_BASE_URL"];
+const RAW_USE_MOCK = ENV["VITE_USE_MOCK_DATA"];
+const NODE_ENV: "development" | "production" | "test" = (ENV["MODE"] as "development" | "production" | "test" | undefined) ?? "production";
+const IS_PRODUCTION_BUILD = NODE_ENV === "production";
+const EXPLICIT_USE_MOCK = RAW_USE_MOCK === "true";
+const EXPLICIT_NO_MOCK = RAW_USE_MOCK === "false";
+
+function isSafeHttpUrl(value: string): boolean {
+  try { const url = new URL(value); return url.protocol === "https:" || url.protocol === "http:"; } catch { return false; }
+}
+
+function currentBaseUrl(): string {
+  const configured = (readEnv()["VITE_API_BASE_URL"] ?? RAW_BASE_URL ?? "").trim();
+  if (isSafeHttpUrl(configured)) return configured.replace(/\/+$/, "");
+  return IS_PRODUCTION_BUILD ? DEFAULT_API_BASE_URL : configured;
+}
+
+export const API_CONFIG = {
+  get baseUrl(): string { return currentBaseUrl(); },
+  get useMock(): boolean {
+    if (IS_PRODUCTION_BUILD) return false;
+    if (EXPLICIT_USE_MOCK) return true;
+    if (EXPLICIT_NO_MOCK) return false;
+    return true;
+  },
+  isProductionBuild: IS_PRODUCTION_BUILD,
+};
+
+export class ApiClientError extends Error implements ApiError {
+  status: number;
+  code?: string;
+  requestId?: string;
+  retryAfterMs?: number;
+
+  constructor(status: number, message: string, code?: string, metadata: { requestId?: string; retryAfterMs?: number } = {}) {
+    super(message);
+    this.name = "ApiClientError";
+    this.status = status;
+    this.code = code;
+    this.requestId = metadata.requestId;
+    this.retryAfterMs = metadata.retryAfterMs;
+  }
+}
+
+export function isApiClientError(value: unknown): value is ApiClientError { return value instanceof ApiClientError; }
+interface RequestOptions { signal?: AbortSignal; params?: Record<string, string | number | boolean | undefined | null> }
+function buildUrl(path: string, params?: RequestOptions["params"]): string {
+  const base = currentBaseUrl().replace(/\/$/, "");
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${base}${cleanPath}`;
+  if (!params) return url;
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== null && value !== "") search.set(key, String(value)); });
+  const qs = search.toString();
+  return qs ? `${url}?${qs}` : url;
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, Math.round(seconds * 1000));
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
+}
+
+async function safeParseJson<T>(response: Response): Promise<T> {
+  const raw = await response.text();
+  if (!raw) throw new ApiClientError(response.status, "Empty response body", "EMPTY_RESPONSE", { requestId: response.headers.get("x-request-id") ?? undefined });
+  try { return JSON.parse(raw) as T; } catch { throw new ApiClientError(response.status, "Response was not valid JSON", "INVALID_JSON", { requestId: response.headers.get("x-request-id") ?? undefined }); }
+}
+
+export async function apiGet<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const url = buildUrl(path, options.params);
+  if (currentBaseUrl() === "" && !API_CONFIG.useMock) throw new ApiClientError(0, "API configuration unavailable", "MISSING_BASE_URL");
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      signal: options.signal,
+      headers: { Accept: "application/json", "Cache-Control": "no-cache" },
+      credentials: "omit",
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    if (isApiClientError(error)) throw error;
+    throw new ApiClientError(0, "Network request failed", "NETWORK_ERROR");
+  }
+
+  const requestId = response.headers.get("x-request-id") ?? undefined;
+  const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
+  if (response.status === 204) return undefined as T;
+
+  if (!response.ok) {
+    let message = `Request failed with status ${response.status}`;
+    let code: string | undefined;
+    try {
+      const data = await safeParseJson<{ message?: string; code?: string; error?: { message?: string; code?: string } }>(response);
+      if (data?.error && typeof data.error === "object") {
+        if (data.error.message) message = data.error.message;
+        if (data.error.code) code = data.error.code;
+      } else {
+        if (data?.message) message = data.message;
+        if (data?.code) code = data.code;
+      }
+    } catch { /* fall back to default message */ }
+    throw new ApiClientError(response.status, message, code, { requestId, retryAfterMs });
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    throw new ApiClientError(response.status, "Expected a JSON response", "INVALID_CONTENT_TYPE", { requestId });
+  }
+  return unwrapEnvelope<T>(await safeParseJson<T>(response));
+}
+
+export function unwrapEnvelope<T>(value: unknown): T {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (record.success === true && "data" in record) return record.data as T;
+  }
+  return value as T;
+}
+
+export type ApiErrorKind = "NOT_FOUND" | "RATE_LIMITED" | "NETWORK_ERROR" | "INVALID_RESPONSE" | "UNKNOWN";
+export function errorKindOf(error: unknown): ApiErrorKind {
+  if (!isApiClientError(error)) return "UNKNOWN";
+  if (error.code === "NOT_FOUND" || error.status === 404) return "NOT_FOUND";
+  if (error.code === "RATE_LIMITED" || error.status === 429) return "RATE_LIMITED";
+  if (error.code === "NETWORK_ERROR") return "NETWORK_ERROR";
+  if (error.code === "INVALID_RESPONSE" || error.code === "INVALID_CONTENT_TYPE" || error.code === "INVALID_JSON" || error.code === "EMPTY_RESPONSE" || (typeof error.code === "string" && error.code.startsWith("INVALID_"))) return "INVALID_RESPONSE";
+  return "UNKNOWN";
+}
+
+export function publicErrorMessage(error: unknown): string {
+  switch (errorKindOf(error)) {
+    case "NOT_FOUND": return "The requested content could not be found.";
+    case "RATE_LIMITED": return "Too many requests. Please wait a moment and try again.";
+    case "NETWORK_ERROR": return "Network request failed. Check your connection and try again.";
+    case "INVALID_RESPONSE": return "The server returned an unexpected response. Please try again.";
+    case "UNKNOWN": return "Something went wrong. Please try again.";
+  }
+}
+
+export function validateResponse<T>(data: unknown, guard: (value: unknown) => value is T, code = "INVALID_RESPONSE"): T {
+  if (!guard(data)) throw new ApiClientError(200, "Response did not match expected shape", code);
+  return data;
+}

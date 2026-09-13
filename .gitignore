@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+dist-tsbuild/
+build/
+out/
+coverage/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Vite
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Misc
+*.tmp
+.cache/
+.temp/
+
+#Tests
+.wrangler/
+test-results/

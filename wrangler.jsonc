@@ -1,0 +1,23 @@
+{
+  // Micromath Public Frontend — assets-only Cloudflare Worker.
+  // Serves the Vite SPA build for https://micromath.in.
+  //
+  // This deployment boundary is intentionally independent of the backend
+  // Worker (api.micromath.in) and of the admin frontend. It declares NO D1
+  // bindings, NO secrets and NO KV/R2: the browser only ever reaches data
+  // through the public HTTP API. No `assets.binding` is declared: nothing
+  // in src/ accesses assets from Worker code (verified), and the current
+  // Wrangler toolchain rejects an asset binding without a Worker script.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "micromath-public-frontend",
+  "compatibility_date": "2026-09-03",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    { "pattern": "micromath.in", "custom_domain": true }
+  ],
+  "observability": { "enabled": true }
+}
