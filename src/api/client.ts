@@ -91,7 +91,8 @@ export async function apiGet<T>(path: string, options: RequestOptions = {}): Pro
     response = await fetch(url, {
       method: "GET",
       signal: options.signal,
-      headers: { Accept: "application/json", "Cache-Control": "no-cache" },
+      headers: { Accept: "application/json" },
+      cache: "no-store",
       credentials: "omit",
     });
   } catch (error) {
