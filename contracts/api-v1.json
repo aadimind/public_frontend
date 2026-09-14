@@ -4,7 +4,7 @@
   "title": "Micromath API v1 Canonical Resource Contract",
   "contractVersion": "1.0.0",
   "sourceOfTruth": "aadimind/backend",
-  "security": {"adminSession":"HttpOnly Secure SameSite=Strict mm_session cookie","refreshSession":"HttpOnly Secure SameSite=Strict mm_refresh cookie","refreshTransport":"cookie-only","rawCredentialsInJson":false},
+  "security": {"adminSession":"HttpOnly Secure SameSite=Strict mm_session cookie","refreshSession":"HttpOnly Secure SameSite=Strict mm_refresh cookie","refreshTransport":"cookie-only","rawCredentialsInJson":false,"csrf":{"stateChangingMethods":["POST","PUT","PATCH","DELETE"],"originPolicy":"exact allowlist or same-origin; missing Origin is permitted for non-browser/native clients","failClosed":true}},
   "resources": {
     "content":{"create":["title","slug","contentType","excerpt","content","contentFormat","language","status","visibility","featured","pinned","allowComments","allowSharing","readingTime","wordCount","authorId","coverMediaId","thumbnailMediaId","publishedAt","scheduledAt","deletedAt","metadataJson"],"update":["title","slug","contentType","excerpt","content","contentFormat","language","status","visibility","featured","pinned","allowComments","allowSharing","readingTime","wordCount","authorId","coverMediaId","thumbnailMediaId","publishedAt","scheduledAt","deletedAt","metadataJson"],"list":["status","contentType","cursor","limit"]},
     "page":{"create":["title","slug","pageType","status","content","contentFormat","customCss","customJs","headerCode","footerCode","publishedAt","coverMediaId"],"update":["title","slug","pageType","status","content","contentFormat","customCss","customJs","headerCode","footerCode","publishedAt","coverMediaId"],"list":["status","pageType","cursor","limit"]},
