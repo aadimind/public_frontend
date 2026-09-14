@@ -25,6 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run contract:verify
+      - run: node ./scripts/verify-production-boundary.mjs
       - run: npm run typecheck
       - run: npm run build
       - name: Production dependency audit
