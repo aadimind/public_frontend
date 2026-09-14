@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "test": "node --experimental-strip-types --no-warnings ./scripts/smoke.mts",
+    "contract:sync": "node ./scripts/sync-api-contract.mjs",
     "contract:verify": "node ./scripts/verify-api-contract.mjs",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types"
