@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://api.micromath.in/contracts/api-v1.json",
   "title": "Micromath API v1 Canonical Resource Contract",
   "contractVersion": "1.0.0",
@@ -12,7 +13,7 @@
     "researchSection":{"create":["researchPaperId","parentId","title","slug","sectionOrder","depth","content","contentFormat"],"update":["researchPaperId","parentId","title","slug","sectionOrder","depth","content","contentFormat"],"list":["researchPaperId","cursor","limit"]},
     "media":{"create":["filename","originalName","mimeType","mediaType","storageUrl","thumbnailUrl","altText","caption","width","height","fileSize","duration","metadata","status"],"update":["filename","originalName","mimeType","mediaType","storageUrl","thumbnailUrl","altText","caption","width","height","fileSize","duration","metadata","status"],"list":["status","mediaType","cursor","limit"]},
     "visual":{"create":["title","visualType","mediaId","caption","altText","description","credit","sourceUrl","metadata"],"update":["title","visualType","mediaId","caption","altText","description","credit","sourceUrl","metadata"],"list":["visualType","cursor","limit"]},
-    "ad":{"create":["name","placement","adType","content","mediaId","targetType","targetId","priority","status","startAt","endAt","metadata"],"update":["name","placement","adType","content","mediaId","targetType","targetId","priority","status","startAt","endAt","metadata"],"list":["placement","status","cursor","limit"]},
+    "ad":{"create":["name","placement","adType","content","mediaId","targetType","targetId","priority","status","startAt","endAt","metadata"],"update":["name","placement","adType","content","mediaId","targetId","priority","status","startAt","endAt","metadata"],"list":["placement","status","cursor","limit"]},
     "permissionGrant":{"create":["roleId","permissionId"]}
   },
   "authTransport":{"login":{"responseSessionMaterial":"cookies-only","mfaRequired":true},"refresh":{"requestBody":false,"refreshTokenSource":"mm_refresh cookie","responseRefreshMaterial":"cookie-only"},"logout":{"sessionMaterial":"cookie-only"},"mfaCompletion":{"requiresVerifiedProof":true,"sessionMaterial":"cookies-only"}},
