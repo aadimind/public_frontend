@@ -10,9 +10,11 @@
   // Wrangler toolchain rejects an asset binding without a Worker script.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "micromath-public-frontend",
+  "main": "src/index.js",
   "compatibility_date": "2026-09-03",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "single-page-application"
   },
